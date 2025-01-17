@@ -77,7 +77,7 @@ const ImageUpload = ({ onImageUpload, multiple = false }) => {
         setPreviews(newPreviews);
         setUploadedImages(newUploadedImages);
         onImageUpload(multiple ? newUploadedImages : null);
-    };
+    }
 
     return (
         <Box className="image-upload-container" dir="rtl">

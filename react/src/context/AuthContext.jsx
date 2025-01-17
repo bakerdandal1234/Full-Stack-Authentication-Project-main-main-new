@@ -19,7 +19,6 @@ export function useAuth() {
 
 export const AuthProvider = ({ children }) => {
   const navigate = useNavigate();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState(null);
   const isAdmin = user?.role === 'user';
@@ -41,13 +40,11 @@ export const AuthProvider = ({ children }) => {
       } else {
         // لا نريد رمي خطأ هنا، فقط نعيد تعيين حالة المصادقة
         setUser(null);
-        setIsAuthenticated(false);
         setAccessToken(null);
       }
     } catch (error) {
       console.log("Auth check failed:", error);
       setUser(null);
-      setIsAuthenticated(false);
       setAccessToken(null);
     } finally {
       setIsLoading(false);
@@ -59,7 +56,6 @@ export const AuthProvider = ({ children }) => {
       if (token) {
         checkAuth();
       } else {
-        setIsAuthenticated(false);
         setUser(null);
       }
     };
@@ -84,7 +80,7 @@ export const AuthProvider = ({ children }) => {
       
       if (response.status === 200) {
         setUser(null);
-        setIsAuthenticated(false);
+        // setIsAuthenticated(false);
         setAccessToken(null);
         navigate("/login");
       }
@@ -92,7 +88,6 @@ export const AuthProvider = ({ children }) => {
       console.error("Logout error:", error);
       // Force logout on client side even if server request fails
       setUser(null);
-      setIsAuthenticated(false);
       setAccessToken(null);
     }
   };
@@ -113,7 +108,6 @@ export const AuthProvider = ({ children }) => {
       if (data.success) {
         setAccessToken(data.accessToken);
         setUser(data.user);
-        setIsAuthenticated(true);
       }
       
       return data; 
@@ -141,18 +135,11 @@ export const AuthProvider = ({ children }) => {
       const data = await response.json();
       console.log('Server response:', data);
 
-      if (!response.ok) {
-        console.log('Signup failed:', data);
-        return {
-          success: false,
-          error: data.error || [{ msg: 'An error occurred during signup' }]
-        };
-      }
+      
 
       if (data.success) {
         setAccessToken(data.accessToken);
         setUser(data.user);
-        setIsAuthenticated(true);
       }
 
       return data;
@@ -274,7 +261,6 @@ export const AuthProvider = ({ children }) => {
 
   const value = {
     user,
-    isAuthenticated,
     isLoading,
     login,
     signup,
@@ -284,7 +270,6 @@ export const AuthProvider = ({ children }) => {
     resetPassword,
     resendVerification,
     verifyEmail,
-    setIsAuthenticated,
     checkAuth,
     isAdmin,
   };

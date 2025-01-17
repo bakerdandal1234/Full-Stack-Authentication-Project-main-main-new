@@ -4,7 +4,7 @@ const logger = require('../winston/logger'); // استيراد المسجل
 
 const uploadImage = async (imageBuffer, filename) => {
     try {
-        logger.info('Uploading image to ImgBB...'); // تسجيل بدء عملية الرفع
+        logger.error('Uploading image to ImgBB...'); // تسجيل بدء عملية الرفع
         const formData = new FormData();
         formData.append('image', imageBuffer, {
             filename: filename,
@@ -20,7 +20,7 @@ const uploadImage = async (imageBuffer, filename) => {
             }
         });
 
-        logger.info('Image uploaded successfully to ImgBB'); // تسجيل نجاح عملية الرفع
+        logger.error('Image uploaded successfully to ImgBB'); // تسجيل نجاح عملية الرفع
         return {
             success: true,
             data: {

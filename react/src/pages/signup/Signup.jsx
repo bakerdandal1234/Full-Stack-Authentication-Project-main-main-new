@@ -81,10 +81,10 @@ const Signup = () => {
       );
       console.log(result);
       if (!result.success) {
-        if (result.error && Array.isArray(result.error)) {
+        if (result.message.errors && Array.isArray(result.message.errors)) {
           const newErrors = { ...formData.errors };
 
-          result.error.forEach((item) => {
+          result.message.errors.forEach((item) => {
             switch (item.path) {
               case "email":
                 newErrors.email = item.msg;
@@ -109,7 +109,7 @@ const Signup = () => {
             ...prev,
             errors: {
               ...prev.errors,
-              email: result.error,
+              email: result.message,
             },
           }));
         }

@@ -52,7 +52,7 @@ const handleOAuthCallback = (provider) => async (req, res, next) => {
             res.redirect(`${ROUTES.SUCCESS}?token=${token}`);
 
         } catch (error) {
-            console.error(`Error in ${provider} callback:`, error);
+            logger.error(`Error in ${provider} callback:`, error);
             res.redirect(ROUTES.LOGIN);
         }
     })(req, res, next);
@@ -86,7 +86,7 @@ router.get('/me', verifyToken, async (req, res) => {
         }
       });
     } catch (error) {
-      console.error('Auth check error:', error);
+      logger.error('Error in auth check:', error);
       res.status(500).json({
         success: false,
         message: 'Internal server error'

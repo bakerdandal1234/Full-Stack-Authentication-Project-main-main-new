@@ -23,11 +23,11 @@ const signupValidation = [
   body("username")
     .trim()
     .isLength({ min: 3 })
-    .withMessage("يجب أن يكون اسم المستخدم 3 أحرف على الأقل"),
-  body("email").isEmail().withMessage("البريد الإلكتروني غير صالح"),
+    .withMessage("username must be at least 3 charactes Long!"),
+  body("email").isEmail().withMessage("email is not valid"),
   body("password")
     .isLength({ min: 6 })
-    .withMessage("يجب أن تكون كلمة المرور 6 أحرف على الأقل"),
+    .withMessage(" password must be at least 6 characters Long! "),
 ];
 
 router.get('/', (req, res) => {
@@ -52,19 +52,20 @@ router.post("/signup", signupValidation, async (req, res) => {
 
     if (existingUser) {
       if (existingUser.email === email) {
-        return sendError(res, "البريد الإلكتروني مسجل مسبقاً");
+        return handleValidationError(res, "user with this email already exists")
       }
-      return sendError(res, "اسم المستخدم مسجل مسبقاً");
+      return handleValidationError(res, "user with this username aleady exists");
     }
 
     // إنشاء رمز التحقق
     const verificationToken = crypto.randomBytes(32).toString("hex");
-
+    const verificationTokenExpiry =Date.now() +3600000 // 1 hour
     // إنشاء المستخدم
     const user = new User({
       username,
       email,
       password,
+      verificationTokenExpiry,
       verificationToken,
     });
 
@@ -73,13 +74,55 @@ router.post("/signup", signupValidation, async (req, res) => {
     // إرسال بريد التحقق
     // await sendVerificationEmail(email, verificationToken);
 
-    logger.info(`User created: ${username} (${email})`);
+    const token = jwt.sign(
+      {
+        userId: user._id,
+        role: user.role,
+        email: user.email
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "1d" }
+    );
 
+    const refreshToken = jwt.sign(
+      { userId: user._id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    // إعداد الكوكيز
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    });
+
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
+
+   
+
+   
     res.status(201).json({
       success: true,
       message: "تم إنشاء الحساب بنجاح. يرجى التحقق من بريدك الإلكتروني",
+      accessToken: token,
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        isVerified: user.isVerified,
+      },
     });
+
   } catch (error) {
+    logger.error(' Error signing up:', error);
     handleServerError(res, error);
   }
 });
@@ -107,6 +150,10 @@ router.post("/login", async (req, res) => {
     if (!isMatch) {
       console.log("Password doesn't match");
       return handleUnauthorized(res, "البريد الإلكتروني أو كلمة المرور غير صحيحة");
+    }
+
+    if(!user.isVerified){
+      return handleUnauthorized(res,"please verify your account")
     }
 
     // إنشاء التوكن
@@ -142,7 +189,7 @@ router.post("/login", async (req, res) => {
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 
-    logger.info(`User logged in: ${user.username} (${user.email})`);
+   
 
     console.log("Login successful");
     res.json({
@@ -158,7 +205,7 @@ router.post("/login", async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Login error:", error);
+    logger.error('Error signing up:', error);
     handleServerError(res, error);
   }
 });
@@ -169,12 +216,12 @@ router.post("/logout", authenticateUser, (req, res) => {
     // مسح جميع الكوكيز
     res.clearCookie("token");
     res.clearCookie("refreshToken");
-    logger.info(`User logged out: ${req.user.username} (${req.user.email})`);
     res.json({
       success: true,
       message: "تم تسجيل الخروج بنجاح",
     });
   } catch (error) {
+    logger.error('Error logging out:', error);
     handleServerError(res, error);
   }
 });
@@ -208,7 +255,7 @@ router.post("/refresh", async (req, res) => {
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
     });
 
-    logger.info(`Token refreshed for user: ${user.username} (${user.email})`);
+   
 
     res.json({
       success: true,
@@ -223,6 +270,7 @@ router.post("/refresh", async (req, res) => {
       }
     });
   } catch (error) {
+    logger.error('Error refreshing token:', error);
     handleServerError(res, error);
   }
 });
@@ -250,13 +298,14 @@ router.post("/resend-verification", async (req, res) => {
     // إرسال بريد التحقق
     await sendVerificationEmail(email, verificationToken);
 
-    logger.info(`Verification email resent to: ${email}`);
+
 
     res.json({
       success: true,
       message: "تم إرسال رمز التحقق. يرجى التحقق من بريدك الإلكتروني",
     });
   } catch (error) {
+    logger.error('Error resending verification email:', error);
     handleServerError(res, error);
   }
 });
@@ -277,13 +326,14 @@ router.get("/verify-email/:token", async (req, res) => {
     user.verificationToken = undefined;
     await user.save();
 
-    logger.info(`Email verified for user: ${user.username} (${user.email})`);
+  
 
     res.json({
       success: true,
       message: "تم تفعيل الحساب بنجاح",
     });
   } catch (error) {
+    logger.error('Error verifying email:', error);
     handleServerError(res, error);
   }
 });
@@ -310,13 +360,14 @@ router.post("/reset-password", async (req, res) => {
     // إرسال بريد إعادة التعيين
     await sendResetPasswordEmail(email, resetToken);
 
-    logger.info(`Password reset email sent to: ${email}`);
+   
 
     res.json({
       success: true,
       message: "تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني",
     });
   } catch (error) {
+    logger.error('Error sending reset password email:', error);
     handleServerError(res, error);
   }
 });
@@ -341,6 +392,7 @@ router.get("/verify-reset-token/:token", async (req, res) => {
       message: "رمز إعادة التعيين صالح",
     });
   } catch (error) {
+    logger.error('Error verifying reset token:', error);
     handleServerError(res, error);
   }
 });
@@ -367,13 +419,14 @@ router.post("/reset-password/:token", async (req, res) => {
     user.resetTokenExpiry = undefined;
     await user.save();
 
-    logger.info(`Password reset for user: ${user.username} (${user.email})`);
+   
 
     res.json({
       success: true,
       message: "تم إعادة تعيين كلمة المرور بنجاح",
     });
   } catch (error) {
+    logger.error('Error reseting password:', error);
     handleServerError(res, error);
   }
 });

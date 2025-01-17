@@ -86,20 +86,14 @@ const Login = () => {
       console.log("Login result:", result);
 
       if (!result.success) {
-        const errorMessage = result.message || "An error occurred during login.";
-        if (errorMessage.toLowerCase().includes("verify")) {
-          setError("verification", errorMessage);
-        } else if (errorMessage.toLowerCase().includes("password")) {
-          setError("password", errorMessage);
-        } else if (errorMessage.toLowerCase().includes("email")) {
-          setError("email", errorMessage);
-        } else {
-          setError("general", errorMessage);
-        }
+        // Set general error message
+        setFormData((prev) => ({
+          ...prev,
+          errors: { general: result.message || "Invalid email or password." },
+        }));
         return;
-      } else {
-        navigate("/home");
       }
+      navigate("/home"); // Redirect on successful login
     } catch (error) {
       console.error("Login form error:", error);
       setError("general", "An unexpected error occurred. Please try again.");
@@ -186,18 +180,6 @@ const Login = () => {
                   Welcome Back
                 </Typography>
               </Box>
-
-              {formData.errors.verification && (
-                <ErrorAlert
-                  error={formData.errors.verification}
-                  onClose={() =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      errors: { ...prev.errors, verification: "" },
-                    }))
-                  }
-                />
-              )}
               {formData.errors.general && (
                 <ErrorAlert
                   error={formData.errors.general}
@@ -229,8 +211,6 @@ const Login = () => {
                   type="email"
                   value={formData.email}
                   onChange={handleChange}
-                  error={!!formData.errors.email}
-                  helperText={formData.errors.email}
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
@@ -248,8 +228,6 @@ const Login = () => {
                   type={formData.showPassword ? "text" : "password"}
                   value={formData.password}
                   onChange={handleChange}
-                  error={!!formData.errors.password}
-                  helperText={formData.errors.password}
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">

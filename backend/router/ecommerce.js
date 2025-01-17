@@ -71,7 +71,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
 router.get('/products', async (req, res) => {
     try {
         const products = await Product.find().populate('category');
-        logger.info('تم الحصول على جميع المنتجات بنجاح');
+        
         res.json({ success: true, data: products });
     } catch (error) {
         handleServerError(res, error);
@@ -81,8 +81,7 @@ router.get('/products', async (req, res) => {
 // إنشاء منتج جديد
 router.post('/products', authenticateUser, upload.array('images'), async (req, res) => {
     try {
-        console.log('Received product data:', req.body);
-        console.log('Received files:', req.files);
+       
 
         // معالجة الصور إذا كانت موجودة في body
         let images = [];
@@ -114,7 +113,7 @@ router.post('/products', authenticateUser, upload.array('images'), async (req, r
                     });
                 }
             } catch (error) {
-                console.error('Error parsing images:', error);
+                logger.error('Error parsing images:', error);
             }
         }
 
@@ -136,13 +135,11 @@ router.post('/products', authenticateUser, upload.array('images'), async (req, r
             images: images.filter(url => url) // تصفية القيم الفارغة
         };
 
-        console.log('Final product data:', productData);
 
         const product = await Product.create(productData);
         const populatedProduct = await Product.findById(product._id).populate('category');
 
-        logger.info('تم إنشاء منتج جديد بنجاح:', product);
-        console.log('Product saved successfully:', populatedProduct);
+       
 
         res.status(201).json({
             success: true,
@@ -150,7 +147,7 @@ router.post('/products', authenticateUser, upload.array('images'), async (req, r
         });
 
     } catch (error) {
-        console.error('Error creating product:', error);
+        logger.error('Error creating product:', error);
         handleServerError(res, error);
     }
 });
@@ -159,8 +156,7 @@ router.post('/products', authenticateUser, upload.array('images'), async (req, r
 router.put('/products/:id', authenticateUser, async (req, res) => {
     try {
         const productId = req.params.id;
-        console.log('جاري تحديث المنتج:', productId);
-        console.log('بيانات الطلب:', req.body);
+       
 
         // التحقق من المصادقة
         if (!req.user) {
@@ -198,7 +194,7 @@ router.put('/products/:id', authenticateUser, async (req, res) => {
             images: existingProduct.images // الاحتفاظ بالصور القديمة
         };
 
-        console.log('بيانات التحديث:', updateData);
+       
 
         const updatedProduct = await Product.findByIdAndUpdate(
             productId,
@@ -206,15 +202,14 @@ router.put('/products/:id', authenticateUser, async (req, res) => {
             { new: true }
         ).populate('category');
 
-        logger.info('تم تحديث المنتج بنجاح:', updatedProduct);
-        console.log('تم تحديث المنتج بنجاح:', updatedProduct);
+      
 
         res.json({
             success: true,
             data: updatedProduct,
         });
     } catch (error) {
-        console.error('حدث خطأ أثناء تحديث المنتج:', error);
+        logger.error('حدث خطأ أثناء تحديث المنتج:', error);
         handleServerError(res, error);
     }
 });
@@ -244,14 +239,14 @@ router.delete('/products/:id', authenticateUser, async (req, res) => {
         // حذف المنتج
         await Product.findByIdAndDelete(productId);
 
-        logger.info('تم حذف المنتج بنجاح:', productId);
+       
         res.json({
             success: true,
             message: 'تم حذف المنتج بنجاح'
         });
 
     } catch (error) {
-        console.error('Error deleting product:', error);
+        logger.error('Error deleting product:', error);
         handleServerError(res, error);
     }
 });
@@ -264,9 +259,10 @@ router.delete('/products/:id', authenticateUser, async (req, res) => {
 router.get('/categories', async (req, res) => {
     try {
         const categories = await Category.find();
-        logger.info('تم الحصول على جميع التصنيفات بنجاح');
+       
         res.json({ success: true, data: categories });
     } catch (error) {
+        logger.error('Error getting categories:', error);
         handleServerError(res, error);
     }
 });
@@ -292,9 +288,9 @@ router.post('/categories', authenticateUser, async (req, res) => {
 
         const category = new Category(req.body);
         await category.save();
-        logger.info('تم إنشاء تصنيف جديد بنجاح:', category);
         res.status(201).json({ success: true, data: category });
     } catch (error) {
+        logger.error('Error adding category:', error);
         handleServerError(res, error);
     }
 });
@@ -319,9 +315,10 @@ router.post('/orders', authenticateUser, async (req, res) => {
             user: req.user._id
         });
         await order.save();
-        logger.info('تم إنشاء طلب جديد بنجاح:', order);
+        
         res.status(201).json({ success: true, data: order });
     } catch (error) {
+        logger.error('Error adding order', error);
         handleServerError(res, error);
     }
 });
@@ -339,9 +336,10 @@ router.get('/orders/my-orders', authenticateUser, async (req, res) => {
 
         const orders = await Order.find({ user: req.user._id })
             .populate('products.product');
-        logger.info('تم الحصول على طلبات المستخدم بنجاح:', orders);
+       
         res.json({ success: true, data: orders });
     } catch (error) {
+        logger.error('Error getting orders:', error);
         handleServerError(res, error);
     }
 });
@@ -371,9 +369,10 @@ router.put('/orders/:id/status', authenticateUser, async (req, res) => {
             { new: true }
         );
         if (!order) return handleNotFound(res, 'الطلب غير موجود');
-        logger.info('تم تحديث حالة الطلب بنجاح:', order);
+       
         res.json({ success: true, data: order });
     } catch (error) {
+        logger.error('Error updating order status:', error);
         handleServerError(res, error);
     }
 });
@@ -388,9 +387,9 @@ router.get('/products/search', async (req, res) => {
                 { description: { $regex: query, $options: 'i' } }
             ]
         }).populate('category');
-        logger.info('تم البحث عن المنتجات بنجاح:', products);
         res.json({ success: true, data: products });
     } catch (error) {
+        logger.error('Error searching products:', error);
         handleServerError(res, error);
     }
 });
