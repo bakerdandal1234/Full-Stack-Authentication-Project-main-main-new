@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const { Product, Category } = require('../models/ecommerceSchema');
+const { Product, Category, Order } = require('../models/ecommerceSchema');
 const { authenticateUser } = require('../middleware');
-const { handleServerError } = require('../utils/errorHandler');
+const { handleServerError, handleNotFound } = require('../utils/errorHandler');
+const logger = require('../winston/logger'); // استيراد المسجل
 const { uploadImage } = require('../config/imgbb');
 
 // إعداد Multer للتخزين المؤقت في الذاكرة
@@ -35,6 +36,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
         const result = await uploadImage(req.file.buffer, req.file.originalname);
 
         if (!result.success) {
+            logger.error('حدث خطأ أثناء رفع الصورة:', result.error);
             return res.status(500).json({
                 success: false,
                 message: 'حدث خطأ أثناء رفع الصورة',
@@ -52,7 +54,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
         });
 
     } catch (error) {
-        console.error('خطأ في رفع الصورة:', error);
+        logger.error('خطأ في رفع الصورة:', error);
         res.status(500).json({
             success: false,
             message: 'حدث خطأ أثناء رفع الصورة',
@@ -69,6 +71,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
 router.get('/products', async (req, res) => {
     try {
         const products = await Product.find().populate('category');
+        logger.info('تم الحصول على جميع المنتجات بنجاح');
         res.json({ success: true, data: products });
     } catch (error) {
         handleServerError(res, error);
@@ -93,15 +96,15 @@ router.post('/products', authenticateUser, upload.array('images'), async (req, r
                     } else if (imageData.url) {
                         images.push(imageData.url);
                     }
-                } 
+                }
                 // إذا كانت الصور مرسلة كمصفوفة
                 else if (Array.isArray(req.body.images)) {
                     images = req.body.images.map(img => {
                         if (typeof img === 'string') {
                             try {
                                 const imageData = JSON.parse(img);
-                                return imageData.url && typeof imageData.url === 'object' 
-                                    ? imageData.url.url 
+                                return imageData.url && typeof imageData.url === 'object'
+                                    ? imageData.url.url
                                     : imageData.url;
                             } catch {
                                 return img;
@@ -137,7 +140,8 @@ router.post('/products', authenticateUser, upload.array('images'), async (req, r
 
         const product = await Product.create(productData);
         const populatedProduct = await Product.findById(product._id).populate('category');
-        
+
+        logger.info('تم إنشاء منتج جديد بنجاح:', product);
         console.log('Product saved successfully:', populatedProduct);
 
         res.status(201).json({
@@ -154,63 +158,64 @@ router.post('/products', authenticateUser, upload.array('images'), async (req, r
 // تحديث منتج
 router.put('/products/:id', authenticateUser, async (req, res) => {
     try {
-      const productId = req.params.id;
-      console.log('جاري تحديث المنتج:', productId);
-      console.log('بيانات الطلب:', req.body);
+        const productId = req.params.id;
+        console.log('جاري تحديث المنتج:', productId);
+        console.log('بيانات الطلب:', req.body);
 
-      // التحقق من المصادقة
-      if (!req.user) {
-        return res.status(401).json({ success: false, message: 'غير مصرح' });
-      }
-  
-      // البحث عن المنتج
-      const existingProduct = await Product.findById(productId);
-      if (!existingProduct) {
-        return res.status(404).json({ success: false, message: 'المنتج غير موجود' });
-      }
-  
-      // البحث عن التصنيف أو استخدام التصنيف الحالي
-      let categoryId = existingProduct.category;
-      if (req.body.category) {
-        const category = await Category.findOne({ name: req.body.category });
-        if (!category) {
-          // إنشاء تصنيف جديد فقط إذا تم توفير اسم التصنيف
-          const newCategory = await Category.create({
-            name: req.body.category,
-            description: `تصنيف ${req.body.category}`
-          });
-          categoryId = newCategory._id;
-        } else {
-          categoryId = category._id;
+        // التحقق من المصادقة
+        if (!req.user) {
+            return res.status(401).json({ success: false, message: 'غير مصرح' });
         }
-      }
-  
-      const updateData = {
-        name: req.body.name || existingProduct.name,
-        description: req.body.description || existingProduct.description,
-        price: parseFloat(req.body.price) || existingProduct.price,
-        stock: parseInt(req.body.stock) || existingProduct.stock,
-        category: categoryId,
-        images: existingProduct.images // الاحتفاظ بالصور القديمة
-      };
-  
-      console.log('بيانات التحديث:', updateData);
-  
-      const updatedProduct = await Product.findByIdAndUpdate(
-        productId,
-        updateData,
-        { new: true }
-      ).populate('category');
-  
-      console.log('تم تحديث المنتج بنجاح:', updatedProduct);
-  
-      res.json({
-        success: true,
-        data: updatedProduct,
-      });
+
+        // البحث عن المنتج
+        const existingProduct = await Product.findById(productId);
+        if (!existingProduct) {
+            return res.status(404).json({ success: false, message: 'المنتج غير موجود' });
+        }
+
+        // البحث عن التصنيف أو استخدام التصنيف الحالي
+        let categoryId = existingProduct.category;
+        if (req.body.category) {
+            const category = await Category.findOne({ name: req.body.category });
+            if (!category) {
+                // إنشاء تصنيف جديد فقط إذا تم توفير اسم التصنيف
+                const newCategory = await Category.create({
+                    name: req.body.category,
+                    description: `تصنيف ${req.body.category}`
+                });
+                categoryId = newCategory._id;
+            } else {
+                categoryId = category._id;
+            }
+        }
+
+        const updateData = {
+            name: req.body.name || existingProduct.name,
+            description: req.body.description || existingProduct.description,
+            price: parseFloat(req.body.price) || existingProduct.price,
+            stock: parseInt(req.body.stock) || existingProduct.stock,
+            category: categoryId,
+            images: existingProduct.images // الاحتفاظ بالصور القديمة
+        };
+
+        console.log('بيانات التحديث:', updateData);
+
+        const updatedProduct = await Product.findByIdAndUpdate(
+            productId,
+            updateData,
+            { new: true }
+        ).populate('category');
+
+        logger.info('تم تحديث المنتج بنجاح:', updatedProduct);
+        console.log('تم تحديث المنتج بنجاح:', updatedProduct);
+
+        res.json({
+            success: true,
+            data: updatedProduct,
+        });
     } catch (error) {
-      console.error('حدث خطأ أثناء تحديث المنتج:', error);
-      handleServerError(res, error);
+        console.error('حدث خطأ أثناء تحديث المنتج:', error);
+        handleServerError(res, error);
     }
 });
 
@@ -239,6 +244,7 @@ router.delete('/products/:id', authenticateUser, async (req, res) => {
         // حذف المنتج
         await Product.findByIdAndDelete(productId);
 
+        logger.info('تم حذف المنتج بنجاح:', productId);
         res.json({
             success: true,
             message: 'تم حذف المنتج بنجاح'
@@ -258,6 +264,7 @@ router.delete('/products/:id', authenticateUser, async (req, res) => {
 router.get('/categories', async (req, res) => {
     try {
         const categories = await Category.find();
+        logger.info('تم الحصول على جميع التصنيفات بنجاح');
         res.json({ success: true, data: categories });
     } catch (error) {
         handleServerError(res, error);
@@ -277,14 +284,15 @@ router.post('/categories', authenticateUser, async (req, res) => {
 
         // التحقق من صلاحيات المستخدم
         if (req.user.role !== 'admin') {
-            return res.status(403).json({ 
-                success: false, 
-                message: 'غير مصرح لك بإضافة تصنيفات' 
+            return res.status(403).json({
+                success: false,
+                message: 'غير مصرح لك بإضافة تصنيفات'
             });
         }
 
         const category = new Category(req.body);
         await category.save();
+        logger.info('تم إنشاء تصنيف جديد بنجاح:', category);
         res.status(201).json({ success: true, data: category });
     } catch (error) {
         handleServerError(res, error);
@@ -311,6 +319,7 @@ router.post('/orders', authenticateUser, async (req, res) => {
             user: req.user._id
         });
         await order.save();
+        logger.info('تم إنشاء طلب جديد بنجاح:', order);
         res.status(201).json({ success: true, data: order });
     } catch (error) {
         handleServerError(res, error);
@@ -330,6 +339,7 @@ router.get('/orders/my-orders', authenticateUser, async (req, res) => {
 
         const orders = await Order.find({ user: req.user._id })
             .populate('products.product');
+        logger.info('تم الحصول على طلبات المستخدم بنجاح:', orders);
         res.json({ success: true, data: orders });
     } catch (error) {
         handleServerError(res, error);
@@ -349,9 +359,9 @@ router.put('/orders/:id/status', authenticateUser, async (req, res) => {
 
         // التحقق من صلاحيات المستخدم
         if (req.user.role !== 'admin') {
-            return res.status(403).json({ 
-                success: false, 
-                message: 'غير مصرح لك بتعديل حالة الطلبات' 
+            return res.status(403).json({
+                success: false,
+                message: 'غير مصرح لك بتعديل حالة الطلبات'
             });
         }
 
@@ -361,6 +371,7 @@ router.put('/orders/:id/status', authenticateUser, async (req, res) => {
             { new: true }
         );
         if (!order) return handleNotFound(res, 'الطلب غير موجود');
+        logger.info('تم تحديث حالة الطلب بنجاح:', order);
         res.json({ success: true, data: order });
     } catch (error) {
         handleServerError(res, error);
@@ -377,6 +388,7 @@ router.get('/products/search', async (req, res) => {
                 { description: { $regex: query, $options: 'i' } }
             ]
         }).populate('category');
+        logger.info('تم البحث عن المنتجات بنجاح:', products);
         res.json({ success: true, data: products });
     } catch (error) {
         handleServerError(res, error);

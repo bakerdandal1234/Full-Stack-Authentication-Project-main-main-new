@@ -64,6 +64,7 @@ export default function Home() {
       }
 
       const data = await response.json();
+      console.log(data.data)
       if (data.success) {
         setProducts(data.data);
       } else {

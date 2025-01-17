@@ -70,74 +70,27 @@ router.get('/google', passport.authenticate('google', {
 router.get('/google/callback', handleOAuthCallback('google'));
 
 // Check authentication status
-router.get('/me', async (req, res) => {
+router.get('/me', verifyToken, async (req, res) => {
   try {
-    // Get token from cookies
-    const token = req.cookies.token;
-    
-    if (!token) {
-      return res.status(401).json({
-        success: false,
-        message: 'Not authenticated'
-      });
-    }
-
-    // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    // Get user data
-    const user = await User.findById(decoded.userId).select('-password');
-    
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    res.json({
-      success: true,
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        role: user.role,
-        isVerified: user.isVerified
-      }
-    });
-  } catch (error) {
-    console.error('Auth check error:', error);
-    res.status(401).json({
-      success: false,
-      message: 'Invalid token'
-    });
-  }
-});
-
-// Get current user info
-router.get('/me/info', verifyToken, async (req, res) => {
-    try {
-        if (!req.user) {
-            return res.status(401).json({ message: 'Not authenticated' });
+      // الآن req.user يحتوي على بيانات المستخدم من قاعدة البيانات
+      // يمكننا الوصول إلى معلومات المستخدم من req.user مباشرة
+        const user = req.user
+      res.json({
+        success: true,
+        user: {
+          id: user._id,
+          username: user.username,
+          email: user.email,
+          role: user.role,
+          isVerified: user.isVerified
         }
-
-        const user = await User.findById(req.user._id);
-        if (!user) {
-            return res.status(404).json({ message: 'User not found' });
-        }
-
-        res.json({
-            id: user._id,
-            email: user.email,
-            username: user.username,
-            googleId: user.googleId,
-            githubId: user.githubId,
-            isVerified: user.isVerified
-        });
+      });
     } catch (error) {
-        console.error('Error getting user info:', error);
-        res.status(500).json({ message: 'Internal server error' });
+      console.error('Auth check error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error'
+      });
     }
 });
-
 module.exports = router;

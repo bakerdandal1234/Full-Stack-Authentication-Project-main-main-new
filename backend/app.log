@@ -1,0 +1,11 @@
+{"level":"info","message":"تم الحصول على جميع التصنيفات بنجاح","timestamp":"2025-01-17 07:43:06"}
+{"level":"info","message":"تم الحصول على جميع المنتجات بنجاح","timestamp":"2025-01-17 07:43:07"}
+{"level":"info","message":"تم الحصول على جميع التصنيفات بنجاح","timestamp":"2025-01-17 07:43:07"}
+{"level":"info","message":"تم الحصول على جميع المنتجات بنجاح","timestamp":"2025-01-17 07:43:07"}
+{"level":"info","message":"Uploading image to ImgBB...","timestamp":"2025-01-17 07:43:29"}
+{"level":"info","message":"Image uploaded successfully to ImgBB","timestamp":"2025-01-17 07:43:30"}
+{"$__":{"$versionError":null,"activePaths":{"paths":{"category":"require","description":"require","name":"require","price":"require","stock":"require"},"states":{"default":{},"modify":{},"require":{"category":true,"description":true,"name":true,"price":true,"stock":true}}},"backup":{"activePaths":{"default":{"_id":true,"createdAt":true},"modify":{"category":true,"description":true,"images":true,"name":true,"price":true,"stock":true}},"validationError":null},"cachedRequired":{},"inserting":true,"op":null,"pathsToScopes":{"images":{"__v":0,"_id":"678a7aa550d2395dd462a4d8","category":"678a6b25b7f05783a63599f9","createdAt":"2025-01-17T15:43:33.260Z","description":"cv","images":["https://i.ibb.co/DWghbvY/banner-15.jpg"],"name":"as","price":12,"stock":1}},"saveOptions":null,"savedState":{},"saving":null,"validating":null},"$isNew":false,"_doc":{"__v":0,"_id":"678a7aa550d2395dd462a4d8","category":"678a6b25b7f05783a63599f9","createdAt":"2025-01-17T15:43:33.260Z","description":"cv","images":["https://i.ibb.co/DWghbvY/banner-15.jpg"],"name":"as","price":12,"stock":1},"level":"info","message":"تم إنشاء منتج جديد بنجاح:","timestamp":"2025-01-17 07:43:33"}
+{"level":"info","message":"تم الحصول على جميع التصنيفات بنجاح","timestamp":"2025-01-17 07:51:02"}
+{"level":"info","message":"تم الحصول على جميع المنتجات بنجاح","timestamp":"2025-01-17 07:51:02"}
+{"level":"info","message":"تم الحصول على جميع المنتجات بنجاح","timestamp":"2025-01-17 07:51:03"}
+{"level":"info","message":"تم الحصول على جميع التصنيفات بنجاح","timestamp":"2025-01-17 07:51:05"}

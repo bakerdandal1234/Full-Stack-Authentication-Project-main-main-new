@@ -9,6 +9,7 @@ const { sendVerificationEmail } = require("../utils/emailService");
 const { sendResetPasswordEmail } = require("../utils/emailService");
 const { verifyToken } = require("../middleware");
 const { authenticateUser } = require("../middleware");
+const logger = require('../winston/logger');
 
 const {
   sendError,
@@ -28,9 +29,11 @@ const signupValidation = [
     .isLength({ min: 6 })
     .withMessage("يجب أن تكون كلمة المرور 6 أحرف على الأقل"),
 ];
-router.get('/',(req,res)=>{
+
+router.get('/', (req, res) => {
   res.send("hello world")
 })
+
 // التسجيل
 router.post("/signup", signupValidation, async (req, res) => {
   try {
@@ -70,6 +73,8 @@ router.post("/signup", signupValidation, async (req, res) => {
     // إرسال بريد التحقق
     // await sendVerificationEmail(email, verificationToken);
 
+    logger.info(`User created: ${username} (${email})`);
+
     res.status(201).json({
       success: true,
       message: "تم إنشاء الحساب بنجاح. يرجى التحقق من بريدك الإلكتروني",
@@ -107,7 +112,7 @@ router.post("/login", async (req, res) => {
     // إنشاء التوكن
     console.log("Creating tokens...");
     const token = jwt.sign(
-      { 
+      {
         userId: user._id,
         role: user.role,
         email: user.email
@@ -123,7 +128,6 @@ router.post("/login", async (req, res) => {
     );
 
     // إعداد الكوكيز
-    console.log("Setting cookies...");
     res.cookie("token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -137,6 +141,8 @@ router.post("/login", async (req, res) => {
       sameSite: "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
+
+    logger.info(`User logged in: ${user.username} (${user.email})`);
 
     console.log("Login successful");
     res.json({
@@ -163,6 +169,7 @@ router.post("/logout", authenticateUser, (req, res) => {
     // مسح جميع الكوكيز
     res.clearCookie("token");
     res.clearCookie("refreshToken");
+    logger.info(`User logged out: ${req.user.username} (${req.user.email})`);
     res.json({
       success: true,
       message: "تم تسجيل الخروج بنجاح",
@@ -200,6 +207,8 @@ router.post("/refresh", async (req, res) => {
       sameSite: "lax",
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
     });
+
+    logger.info(`Token refreshed for user: ${user.username} (${user.email})`);
 
     res.json({
       success: true,
@@ -241,6 +250,8 @@ router.post("/resend-verification", async (req, res) => {
     // إرسال بريد التحقق
     await sendVerificationEmail(email, verificationToken);
 
+    logger.info(`Verification email resent to: ${email}`);
+
     res.json({
       success: true,
       message: "تم إرسال رمز التحقق. يرجى التحقق من بريدك الإلكتروني",
@@ -265,6 +276,8 @@ router.get("/verify-email/:token", async (req, res) => {
     user.isVerified = true;
     user.verificationToken = undefined;
     await user.save();
+
+    logger.info(`Email verified for user: ${user.username} (${user.email})`);
 
     res.json({
       success: true,
@@ -296,6 +309,8 @@ router.post("/reset-password", async (req, res) => {
 
     // إرسال بريد إعادة التعيين
     await sendResetPasswordEmail(email, resetToken);
+
+    logger.info(`Password reset email sent to: ${email}`);
 
     res.json({
       success: true,
@@ -351,6 +366,8 @@ router.post("/reset-password/:token", async (req, res) => {
     user.resetToken = undefined;
     user.resetTokenExpiry = undefined;
     await user.save();
+
+    logger.info(`Password reset for user: ${user.username} (${user.email})`);
 
     res.json({
       success: true,

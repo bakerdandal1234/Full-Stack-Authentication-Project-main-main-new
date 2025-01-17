@@ -1,8 +1,10 @@
 const axios = require('axios');
 const FormData = require('form-data');
+const logger = require('../winston/logger'); // استيراد المسجل
 
 const uploadImage = async (imageBuffer, filename) => {
     try {
+        logger.info('Uploading image to ImgBB...'); // تسجيل بدء عملية الرفع
         const formData = new FormData();
         formData.append('image', imageBuffer, {
             filename: filename,
@@ -18,17 +20,18 @@ const uploadImage = async (imageBuffer, filename) => {
             }
         });
 
+        logger.info('Image uploaded successfully to ImgBB'); // تسجيل نجاح عملية الرفع
         return {
             success: true,
             data: {
                 url: response.data.data.url,
                 delete_url: response.data.data.delete_url,
-                thumb: response.data.data.thumb.url
+                thumb: response.data.data.thumb
             }
         };
 
     } catch (error) {
-        console.error('خطأ في رفع الصورة:', error);
+        logger.error('Error uploading image:', error); // استخدم logger لتسجيل الخطأ
         return {
             success: false,
             error: error.message
