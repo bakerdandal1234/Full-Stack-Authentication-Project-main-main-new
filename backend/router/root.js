@@ -9,7 +9,6 @@ const { sendVerificationEmail } = require("../utils/emailService");
 const { sendResetPasswordEmail } = require("../utils/emailService");
 const { verifyToken } = require("../middleware");
 const { authenticateUser } = require("../middleware");
-const logger = require('../winston/logger');
 
 const {
   sendError,
@@ -40,6 +39,7 @@ router.post("/signup", signupValidation, async (req, res) => {
     // التحقق من وجود أخطاء في التحقق
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log("Validation error in signup:", errors.array());
       return handleValidationError(res, errors);
     }
 
@@ -52,8 +52,10 @@ router.post("/signup", signupValidation, async (req, res) => {
 
     if (existingUser) {
       if (existingUser.email === email) {
+        console.log("User with this email already exists:", email);
         return handleValidationError(res, "user with this email already exists")
       }
+      console.log("User with this username already exists:", username);
       return handleValidationError(res, "user with this username aleady exists");
     }
 
@@ -70,6 +72,8 @@ router.post("/signup", signupValidation, async (req, res) => {
     });
 
     await user.save();
+
+    console.log("User created successfully:", { username, email });
 
     // إرسال بريد التحقق
     // await sendVerificationEmail(email, verificationToken);
@@ -122,7 +126,7 @@ router.post("/signup", signupValidation, async (req, res) => {
     });
 
   } catch (error) {
-    logger.error(' Error signing up:', error);
+    console.error("Error signing up:", error);
     handleServerError(res, error);
   }
 });
@@ -138,26 +142,25 @@ router.post("/login", async (req, res) => {
     console.log("Found user:", user ? "Yes" : "No");
 
     if (!user) {
-      console.log("User not found");
-      return handleUnauthorized(res, "البريد الإلكتروني أو كلمة المرور غير صحيحة");
+      console.log("User not found during login:", email);
+      return handleUnauthorized(res, "user or password does not match");
     }
 
     // التحقق من كلمة المرور
-    console.log("Comparing password...");
     const isMatch = await user.comparePassword(password);
-    console.log("Password match:", isMatch);
 
     if (!isMatch) {
-      console.log("Password doesn't match");
-      return handleUnauthorized(res, "البريد الإلكتروني أو كلمة المرور غير صحيحة");
+      console.log("Invalid password for user:", email);
+      return handleUnauthorized(res, "email or password does not match");
     }
 
-    if(!user.isVerified){
-      return handleUnauthorized(res,"please verify your account")
-    }
+    // if(!user.isVerified){
+    //   console.log("Unverified user attempt to login:", email);
+    //   return handleUnauthorized(res,"please verify your account")
+    // }
 
+    console.log("Login successful:", email);
     // إنشاء التوكن
-    console.log("Creating tokens...");
     const token = jwt.sign(
       {
         userId: user._id,
@@ -191,7 +194,7 @@ router.post("/login", async (req, res) => {
 
    
 
-    console.log("Login successful");
+    
     res.json({
       success: true,
       message: "تم تسجيل الدخول بنجاح",
@@ -205,7 +208,7 @@ router.post("/login", async (req, res) => {
       },
     });
   } catch (error) {
-    logger.error('Error signing up:', error);
+    console.error("Error during login:", error);
     handleServerError(res, error);
   }
 });
@@ -221,7 +224,7 @@ router.post("/logout", authenticateUser, (req, res) => {
       message: "تم تسجيل الخروج بنجاح",
     });
   } catch (error) {
-    logger.error('Error logging out:', error);
+    console.error('Error logging out:', error);
     handleServerError(res, error);
   }
 });
@@ -270,7 +273,7 @@ router.post("/refresh", async (req, res) => {
       }
     });
   } catch (error) {
-    logger.error('Error refreshing token:', error);
+    console.error('Error refreshing token:', error);
     handleServerError(res, error);
   }
 });
@@ -305,7 +308,7 @@ router.post("/resend-verification", async (req, res) => {
       message: "تم إرسال رمز التحقق. يرجى التحقق من بريدك الإلكتروني",
     });
   } catch (error) {
-    logger.error('Error resending verification email:', error);
+    console.error('Error resending verification email:', error);
     handleServerError(res, error);
   }
 });
@@ -333,7 +336,7 @@ router.get("/verify-email/:token", async (req, res) => {
       message: "تم تفعيل الحساب بنجاح",
     });
   } catch (error) {
-    logger.error('Error verifying email:', error);
+    console.error('Error verifying email:', error);
     handleServerError(res, error);
   }
 });
@@ -367,7 +370,7 @@ router.post("/reset-password", async (req, res) => {
       message: "تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني",
     });
   } catch (error) {
-    logger.error('Error sending reset password email:', error);
+    console.error('Error sending reset password email:', error);
     handleServerError(res, error);
   }
 });
@@ -392,7 +395,7 @@ router.get("/verify-reset-token/:token", async (req, res) => {
       message: "رمز إعادة التعيين صالح",
     });
   } catch (error) {
-    logger.error('Error verifying reset token:', error);
+    console.error('Error verifying reset token:', error);
     handleServerError(res, error);
   }
 });
@@ -426,7 +429,7 @@ router.post("/reset-password/:token", async (req, res) => {
       message: "تم إعادة تعيين كلمة المرور بنجاح",
     });
   } catch (error) {
-    logger.error('Error reseting password:', error);
+    console.error('Error reseting password:', error);
     handleServerError(res, error);
   }
 });

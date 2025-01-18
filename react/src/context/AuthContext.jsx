@@ -36,7 +36,6 @@ export const AuthProvider = ({ children }) => {
 
       if (response.ok && data.user) {
         setUser(data.user);
-        setIsAuthenticated(true);
       } else {
         // لا نريد رمي خطأ هنا، فقط نعيد تعيين حالة المصادقة
         setUser(null);

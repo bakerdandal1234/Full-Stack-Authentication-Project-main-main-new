@@ -4,7 +4,6 @@ const multer = require('multer');
 const { Product, Category, Order } = require('../models/ecommerceSchema');
 const { authenticateUser } = require('../middleware');
 const { handleServerError, handleNotFound } = require('../utils/errorHandler');
-const logger = require('../winston/logger'); // استيراد المسجل
 const { uploadImage } = require('../config/imgbb');
 
 // إعداد Multer للتخزين المؤقت في الذاكرة
@@ -36,7 +35,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
         const result = await uploadImage(req.file.buffer, req.file.originalname);
 
         if (!result.success) {
-            logger.error('حدث خطأ أثناء رفع الصورة:', result.error);
+            console.error('حدث خطأ أثناء رفع الصورة:', result.error);
             return res.status(500).json({
                 success: false,
                 message: 'حدث خطأ أثناء رفع الصورة',
@@ -54,7 +53,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
         });
 
     } catch (error) {
-        logger.error('خطأ في رفع الصورة:', error);
+        console.error('خطأ في رفع الصورة:', error);
         res.status(500).json({
             success: false,
             message: 'حدث خطأ أثناء رفع الصورة',
@@ -71,9 +70,10 @@ router.post('/upload', upload.single('file'), async (req, res) => {
 router.get('/products', async (req, res) => {
     try {
         const products = await Product.find().populate('category');
-        
+        console.log(`Retrieved ${products.length} products`);
         res.json({ success: true, data: products });
     } catch (error) {
+        console.error('Error getting products:', error);
         handleServerError(res, error);
     }
 });
@@ -81,8 +81,6 @@ router.get('/products', async (req, res) => {
 // إنشاء منتج جديد
 router.post('/products', authenticateUser, upload.array('images'), async (req, res) => {
     try {
-       
-
         // معالجة الصور إذا كانت موجودة في body
         let images = [];
         if (req.body.images) {
@@ -113,7 +111,7 @@ router.post('/products', authenticateUser, upload.array('images'), async (req, r
                     });
                 }
             } catch (error) {
-                logger.error('Error parsing images:', error);
+                console.error('Error parsing images:', error);
             }
         }
 
@@ -139,15 +137,14 @@ router.post('/products', authenticateUser, upload.array('images'), async (req, r
         const product = await Product.create(productData);
         const populatedProduct = await Product.findById(product._id).populate('category');
 
-       
-
+        console.log('Product created successfully:', { name: product.name, id: product._id });
         res.status(201).json({
             success: true,
             data: populatedProduct
         });
 
     } catch (error) {
-        logger.error('Error creating product:', error);
+        console.error('Error creating product:', error);
         handleServerError(res, error);
     }
 });
@@ -156,8 +153,6 @@ router.post('/products', authenticateUser, upload.array('images'), async (req, r
 router.put('/products/:id', authenticateUser, async (req, res) => {
     try {
         const productId = req.params.id;
-       
-
         // التحقق من المصادقة
         if (!req.user) {
             return res.status(401).json({ success: false, message: 'غير مصرح' });
@@ -194,22 +189,19 @@ router.put('/products/:id', authenticateUser, async (req, res) => {
             images: existingProduct.images // الاحتفاظ بالصور القديمة
         };
 
-       
-
         const updatedProduct = await Product.findByIdAndUpdate(
             productId,
             updateData,
             { new: true }
         ).populate('category');
 
-      
-
+        console.log('Product updated successfully:', { id: updatedProduct._id, name: updatedProduct.name });
         res.json({
             success: true,
             data: updatedProduct,
         });
     } catch (error) {
-        logger.error('حدث خطأ أثناء تحديث المنتج:', error);
+        console.error('حدث خطأ أثناء تحديث المنتج:', error);
         handleServerError(res, error);
     }
 });
@@ -239,14 +231,14 @@ router.delete('/products/:id', authenticateUser, async (req, res) => {
         // حذف المنتج
         await Product.findByIdAndDelete(productId);
 
-       
+        console.log('Product deleted successfully:', { id: productId });
         res.json({
             success: true,
             message: 'تم حذف المنتج بنجاح'
         });
 
     } catch (error) {
-        logger.error('Error deleting product:', error);
+        console.error('Error deleting product:', error)
         handleServerError(res, error);
     }
 });
@@ -259,10 +251,10 @@ router.delete('/products/:id', authenticateUser, async (req, res) => {
 router.get('/categories', async (req, res) => {
     try {
         const categories = await Category.find();
-       
+        console.log(`Retrieved ${categories.length} categories`);
         res.json({ success: true, data: categories });
     } catch (error) {
-        logger.error('Error getting categories:', error);
+        console.error('Error getting categories:', error);
         handleServerError(res, error);
     }
 });
@@ -288,9 +280,10 @@ router.post('/categories', authenticateUser, async (req, res) => {
 
         const category = new Category(req.body);
         await category.save();
+        console.log('Category created successfully:', { name: category.name, id: category._id });
         res.status(201).json({ success: true, data: category });
     } catch (error) {
-        logger.error('Error adding category:', error);
+        console.error('Error adding category:', error);
         handleServerError(res, error);
     }
 });
@@ -315,10 +308,10 @@ router.post('/orders', authenticateUser, async (req, res) => {
             user: req.user._id
         });
         await order.save();
-        
+        console.log('New order created:', { orderId: order._id, userId: req.user._id });
         res.status(201).json({ success: true, data: order });
     } catch (error) {
-        logger.error('Error adding order', error);
+        console.error('Error adding order', error);
         handleServerError(res, error);
     }
 });
@@ -336,10 +329,10 @@ router.get('/orders/my-orders', authenticateUser, async (req, res) => {
 
         const orders = await Order.find({ user: req.user._id })
             .populate('products.product');
-       
+        console.log(`Retrieved ${orders.length} orders for user ${req.user._id}`);
         res.json({ success: true, data: orders });
     } catch (error) {
-        logger.error('Error getting orders:', error);
+        console.error('Error getting orders:', error);
         handleServerError(res, error);
     }
 });
@@ -369,10 +362,10 @@ router.put('/orders/:id/status', authenticateUser, async (req, res) => {
             { new: true }
         );
         if (!order) return handleNotFound(res, 'الطلب غير موجود');
-       
+        console.log('Order status updated successfully:', { orderId: order._id, status: order.status });
         res.json({ success: true, data: order });
     } catch (error) {
-        logger.error('Error updating order status:', error);
+        console.error('Error updating order status:', error);
         handleServerError(res, error);
     }
 });
@@ -387,9 +380,10 @@ router.get('/products/search', async (req, res) => {
                 { description: { $regex: query, $options: 'i' } }
             ]
         }).populate('category');
+        console.log(`Retrieved ${products.length} products matching query "${query}"`);
         res.json({ success: true, data: products });
     } catch (error) {
-        logger.error('Error searching products:', error);
+        console.error('Error searching products:', error);
         handleServerError(res, error);
     }
 });
